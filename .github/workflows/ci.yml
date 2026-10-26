@@ -23,4 +23,4 @@ jobs:
         run: test -f index.html
 
       - name: Run tests
-        run: bash scripts/test.sh
+        run: bash test.sh
