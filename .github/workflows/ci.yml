@@ -3,7 +3,7 @@ name: Basic CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/**"]
   pull_request:
     branches: [main]
 
@@ -19,8 +19,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install HTML validator
+        run: npm install --global html-validate
+
+      - name: Validate HTML
+        run: html-validate index.html
+
       - name: Check HTML file
         run: test -f index.html
 
-      - name: Run tests
+      - name: Run content tests
         run: bash test.sh
+
+      - name: Build Docker image
+        run: docker build -t ci-basics:test .
+
