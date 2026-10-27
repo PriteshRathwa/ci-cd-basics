@@ -20,6 +20,7 @@ jobs:
           AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
           AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
           AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
@@ -28,6 +29,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
 
           ssh -i ~/.ssh/deploy_key \
+            -p "$AZURE_VM_PORT" \
             -o StrictHostKeyChecking=accept-new \
             "$AZURE_VM_USER@$AZURE_VM_HOST" \
             'sudo docker pull ghcr.io/priteshrathwa/ci-basics:latest &&
