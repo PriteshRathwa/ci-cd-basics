@@ -1,0 +1,40 @@
+name: Deploy to Azure VM
+
+on:
+  workflow_run:
+    workflows: ["Docker Image Publish"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Azure VM
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$AZURE_VM_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            "$AZURE_VM_USER@$AZURE_VM_HOST" \
+            'sudo docker pull ghcr.io/priteshrathwa/ci-basics:latest &&
+             sudo docker stop ci-basics || true
+             sudo docker rm ci-basics || true
+             sudo docker run -d \
+               --name ci-basics \
+               --restart unless-stopped \
+               -p 127.0.0.1:8080:80 \
+               ghcr.io/priteshrathwa/ci-basics:latest'
