@@ -16,7 +16,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to Azure VM
+      - name: Capture previous image
+        id: previous
         env:
           AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
           AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
@@ -29,13 +30,29 @@ jobs:
           printf '%s\n' "$AZURE_VM_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
+          PREVIOUS_IMAGE=$(ssh -i ~/.ssh/deploy_key \
+            -p "$AZURE_VM_PORT" \
+            -o StrictHostKeyChecking=accept-new \
+            "$AZURE_VM_USER@$AZURE_VM_HOST" \
+            "sudo docker inspect ci-basics --format '{{.Config.Image}}' 2>/dev/null || true")
+
+          echo "previous_image=$PREVIOUS_IMAGE" >> "$GITHUB_OUTPUT"
+          echo "Previous image: $PREVIOUS_IMAGE"
+
+      - name: Deploy to Azure VM
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+        run: |
           ssh -i ~/.ssh/deploy_key \
             -p "$AZURE_VM_PORT" \
             -o StrictHostKeyChecking=accept-new \
             "$AZURE_VM_USER@$AZURE_VM_HOST" \
             'sudo docker pull ghcr.io/priteshrathwa/ci-basics:latest &&
-             sudo docker stop ci-basics || true
-             sudo docker rm ci-basics || true
+             (sudo docker stop ci-basics || true) &&
+             (sudo docker rm ci-basics || true) &&
              sudo docker run -d \
                --name ci-basics \
                --restart unless-stopped \
@@ -58,4 +75,44 @@ jobs:
           done
 
           echo "Deployment verification failed"
+          exit 1
+
+      - name: Roll back to previous image
+        if: failure() && steps.previous.outputs.previous_image != ''
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          PREVIOUS_IMAGE: ${{ steps.previous.outputs.previous_image }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -p "$AZURE_VM_PORT" \
+            -o StrictHostKeyChecking=accept-new \
+            "$AZURE_VM_USER@$AZURE_VM_HOST" \
+            "sudo docker stop ci-basics || true
+             sudo docker rm ci-basics || true
+             sudo docker run -d \
+               --name ci-basics \
+               --restart unless-stopped \
+               -p 127.0.0.1:8080:80 \
+               '$PREVIOUS_IMAGE'"
+
+      - name: Verify rollback
+        if: failure() && steps.previous.outputs.previous_image != ''
+        env:
+          AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+        run: |
+          for i in {1..10}; do
+            if curl --fail --silent --show-error \
+              "https://${AZURE_VM_HOST}/ci-basics/"; then
+              echo "Rollback verified"
+              exit 0
+            fi
+
+            echo "Rollback website not ready yet. Retrying..."
+            sleep 5
+          done
+
+          echo "Rollback verification failed"
           exit 1
