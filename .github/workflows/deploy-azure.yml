@@ -65,7 +65,7 @@ jobs:
         run: |
           for i in {1..10}; do
             if curl --fail --silent --show-error \
-              "https://${AZURE_VM_HOST}/ci-basics/"; then
+              "https://${AZURE_VM_HOST}/ci-basics/rollback-test"; then
               echo "Deployment verified successfully"
               exit 0
             fi
