@@ -34,7 +34,7 @@ jobs:
             -p "$AZURE_VM_PORT" \
             -o StrictHostKeyChecking=accept-new \
             "$AZURE_VM_USER@$AZURE_VM_HOST" \
-            "sudo docker inspect ci-basics --format '{{.Config.Image}}' 2>/dev/null || true")
+            "sudo docker inspect ci-basics --format '{{.Image}}' 2>/dev/null || true")
 
           echo "previous_image=$PREVIOUS_IMAGE" >> "$GITHUB_OUTPUT"
           echo "Previous image: $PREVIOUS_IMAGE"
@@ -90,7 +90,8 @@ jobs:
             -p "$AZURE_VM_PORT" \
             -o StrictHostKeyChecking=accept-new \
             "$AZURE_VM_USER@$AZURE_VM_HOST" \
-            "sudo docker stop ci-basics || true
+            "sudo docker image inspect "$PREVIOUS_IMAGE" >/dev/null
+            sudo docker stop ci-basics || true
              sudo docker rm ci-basics || true
              sudo docker run -d \
                --name ci-basics \
