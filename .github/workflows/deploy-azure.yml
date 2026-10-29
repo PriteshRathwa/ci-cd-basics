@@ -23,16 +23,20 @@ jobs:
           AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
           AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
           AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
           printf '%s\n' "$AZURE_VM_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$AZURE_VM_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/deploy_key
+          chmod 644 ~/.ssh/known_hosts
 
           PREVIOUS_IMAGE=$(ssh -i ~/.ssh/deploy_key \
             -p "$AZURE_VM_PORT" \
-            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=yes \
             "$AZURE_VM_USER@$AZURE_VM_HOST" \
             "sudo docker inspect ci-basics --format '{{.Image}}' 2>/dev/null || true")
 
@@ -45,19 +49,22 @@ jobs:
           AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
           AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
           AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
+          IMAGE_REF: ghcr.io/priteshrathwa/ci-basics:${{ github.event.workflow_run.head_sha }}
         run: |
           ssh -i ~/.ssh/deploy_key \
             -p "$AZURE_VM_PORT" \
-            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=yes \
             "$AZURE_VM_USER@$AZURE_VM_HOST" \
-            'sudo docker pull ghcr.io/priteshrathwa/ci-basics:latest &&
+            "sudo docker pull '$IMAGE_REF' &&
              (sudo docker stop ci-basics || true) &&
              (sudo docker rm ci-basics || true) &&
              sudo docker run -d \
                --name ci-basics \
                --restart unless-stopped \
                -p 127.0.0.1:8080:80 \
-               ghcr.io/priteshrathwa/ci-basics:latest'
+               '$IMAGE_REF'"
 
       - name: Verify deployment
         env:
@@ -84,15 +91,17 @@ jobs:
           AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
           AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
           AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
           PREVIOUS_IMAGE: ${{ steps.previous.outputs.previous_image }}
         run: |
           ssh -i ~/.ssh/deploy_key \
             -p "$AZURE_VM_PORT" \
-            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=yes \
             "$AZURE_VM_USER@$AZURE_VM_HOST" \
-            "sudo docker image inspect "$PREVIOUS_IMAGE" >/dev/null
-            sudo docker stop ci-basics || true
-             sudo docker rm ci-basics || true
+            "sudo docker image inspect '$PREVIOUS_IMAGE' >/dev/null &&
+             (sudo docker stop ci-basics || true) &&
+             (sudo docker rm ci-basics || true) &&
              sudo docker run -d \
                --name ci-basics \
                --restart unless-stopped \

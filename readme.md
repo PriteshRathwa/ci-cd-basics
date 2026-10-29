@@ -45,7 +45,7 @@ flowchart TD
 2. GitHub Actions validates the HTML and runs content tests.
 3. A Docker image is built.
 4. The image is published to GHCR.
-5. GitHub Actions connects to the Azure VM over SSH.
+5. GitHub Actions connects to the Azure VM over SSH using a pinned host key.
 6. The new image is deployed as a Docker container.
 7. An HTTP request verifies that the deployed website responds.
 8. If verification fails, the workflow restores the previous Docker image.
@@ -62,7 +62,7 @@ The workflow reports a failed deployment even when rollback succeeds. This disti
 ## Security Considerations
 
 - Deployment credentials are stored as GitHub Actions secrets.
-- The VM is accessed using a dedicated SSH deployment key.
+- The VM is accessed using a dedicated SSH deployment key and the `AZURE_VM_KNOWN_HOSTS` secret for pinned host-key verification.
 - GitHub Actions permissions are restricted to the required scope.
 - The Docker container is bound to `127.0.0.1`; Nginx serves the public HTTPS endpoint.
 - Secrets and private keys are not committed to the repository.
@@ -80,7 +80,7 @@ The workflow reports a failed deployment even when rollback succeeds. This disti
 
 ## Future Improvements
 
-- Deploy immutable commit-SHA image tags instead of relying on `latest`.
+- Add image signature and provenance verification.
 - Add an application-specific health endpoint.
 - Add monitoring and alerting.
 - Provision Azure infrastructure using Terraform.
