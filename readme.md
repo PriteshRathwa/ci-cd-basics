@@ -6,8 +6,8 @@ The project automates testing, container image publishing, deployment, post-depl
 
 ## Live Demo
 
-- **Portfolio:** pritesh.cloud
-- **CI Basics website:** https://pritesh.cloud/ci-basics/
+- **Portfolio:** https://20.197.29.44/
+- **CI Basics website:** https://20.197.29.44/ci-basics/
 
 ## Architecture
 
