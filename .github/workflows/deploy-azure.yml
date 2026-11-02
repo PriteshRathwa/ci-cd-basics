@@ -65,26 +65,34 @@ jobs:
                --restart unless-stopped \
                -p 127.0.0.1:8080:80 \
                '$IMAGE_REF'"
-
+      
       - name: Verify deployment
         env:
           AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
         run: |
           for i in {1..10}; do
-            if curl --fail --silent --show-error \
-              --resolve "pritesh.cloud:443:${AZURE_VM_HOST}" \
-                "https://pritesh.cloud/ci-basics/rollback-test"; then
+            if ssh -i ~/.ssh/deploy_key \
+              -p "$AZURE_VM_PORT" \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o StrictHostKeyChecking=yes \
+              "$AZURE_VM_USER@$AZURE_VM_HOST" \
+              "curl -fsS http://127.0.0.1:8080/ >/dev/null"; then
               echo "Deployment verified successfully"
               exit 0
             fi
 
-            echo "Website not ready yet. Retrying..."
+            echo "Container not ready yet. Retrying..."
             sleep 5
           done
 
           echo "Deployment verification failed"
           exit 1
 
+      
       - name: Roll back to previous image
         if: failure() && steps.previous.outputs.previous_image != ''
         env:
@@ -108,21 +116,27 @@ jobs:
                --restart unless-stopped \
                -p 127.0.0.1:8080:80 \
                '$PREVIOUS_IMAGE'"
-
       - name: Verify rollback
         if: failure() && steps.previous.outputs.previous_image != ''
         env:
           AZURE_VM_HOST: ${{ secrets.AZURE_VM_HOST }}
+          AZURE_VM_USER: ${{ secrets.AZURE_VM_USER }}
+          AZURE_VM_SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          AZURE_VM_PORT: ${{ secrets.AZURE_VM_PORT }}
+          AZURE_VM_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
         run: |
           for i in {1..10}; do
-            if curl --fail --silent --show-error \
-              --resolve "pritesh.cloud:443:${AZURE_VM_HOST}" \
-              "https://pritesh.cloud/ci-basics/"; then
+            if ssh -i ~/.ssh/deploy_key \
+              -p "$AZURE_VM_PORT" \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o StrictHostKeyChecking=yes \
+              "$AZURE_VM_USER@$AZURE_VM_HOST" \
+              "curl -fsS http://127.0.0.1:8080/ >/dev/null"; then
               echo "Rollback verified"
               exit 0
             fi
 
-            echo "Rollback website not ready yet. Retrying..."
+            echo "Rollback container not ready yet. Retrying..."
             sleep 5
           done
 
