@@ -72,7 +72,8 @@ jobs:
         run: |
           for i in {1..10}; do
             if curl --fail --silent --show-error \
-              "https://${AZURE_VM_HOST}/ci-basics/rollback-test"; then
+              --resolve "pritesh.cloud:443:${AZURE_VM_HOST}" \
+                "https://pritesh.cloud/ci-basics/rollback-test"; then
               echo "Deployment verified successfully"
               exit 0
             fi
@@ -115,7 +116,8 @@ jobs:
         run: |
           for i in {1..10}; do
             if curl --fail --silent --show-error \
-              "https://${AZURE_VM_HOST}/ci-basics/"; then
+              --resolve "pritesh.cloud:443:${AZURE_VM_HOST}" \
+              "https://pritesh.cloud/ci-basics/"; then
               echo "Rollback verified"
               exit 0
             fi
